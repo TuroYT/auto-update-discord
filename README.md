@@ -10,14 +10,9 @@ Ce script permet de configurer les mises à jour automatiques sur un serveur Deb
 
 ## Installation
 
-1. Clonez ce dépôt ou téléchargez le script `auto-update-discord.sh`
-2. Rendez le script exécutable :
    ```bash
-   chmod +x auto-update-discord.sh
-   ```
-3. Exécutez le script en tant que root :
-   ```bash
-   sudo ./auto-update-discord.sh
+   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/TuroYT/auto-update-discord/main/auto-update-discord.sh)"
+
    ```
 
 ## Fonctionnalités
