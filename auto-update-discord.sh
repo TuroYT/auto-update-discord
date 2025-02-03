@@ -16,10 +16,11 @@ apt-get install -y unattended-upgrades curl
 # Configurer Unattended-Upgrades
 cat <<EOL > /etc/apt/apt.conf.d/50unattended-upgrades
 Unattended-Upgrade::Allowed-Origins {
-    "\${distro_id}:\${distro_codename}-security";
-    // "\${distro_id}:\${distro_codename}-updates";
-    // "\${distro_id}:\${distro_codename}-proposed";
-    // "\${distro_id}:\${distro_codename}-backports";
+      "\${distro_id}:\${distro_codename}";
+      "\${distro_id}:\${distro_codename}-security";
+      "\${distro_id}:\${distro_codename}-updates";
+      "\${distro_id}:\${distro_codename}-proposed";
+      "\${distro_id}:\${distro_codename}-backports";
 };
 EOL
 
