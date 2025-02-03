@@ -4,11 +4,17 @@ Ce script permet de configurer les mises à jour automatiques sur un serveur Deb
 
 ## Installation
 
+Vous pouvez installer le script de deux façons :
+
+1. Installation interactive :
    ```bash
    sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/TuroYT/auto-update-discord/main/auto-update-discord.sh)"
-
    ```
 
+2. Installation avec webhook en paramètre :
+   ```bash
+   sudo bash -c "$(curl -fsSL https://raw.githubusercontent.com/TuroYT/auto-update-discord/main/auto-update-discord.sh)" _ [WEBHOOK_URL]
+   ```
 
 ## Comment ça marche
 

@@ -6,8 +6,23 @@ if [ "$EUID" -ne 0 ]
   exit
 fi
 
-# URL du webhook Discord
-read -p "Veuillez entrer l'URL de votre webhook Discord : " WEBHOOK_URL
+# Gestion des paramètres
+WEBHOOK_URL=$1
+
+# Si pas de webhook en paramètre, demander interactivement
+if [ -z "$WEBHOOK_URL" ]; then
+    read -p "Veuillez entrer l'URL de votre webhook Discord : " WEBHOOK_URL
+fi
+
+# Vérifier que le webhook est bien fourni
+if [ -z "$WEBHOOK_URL" ]; then
+    echo "Erreur: L'URL du webhook Discord est requise."
+    echo "Usage: $0 [WEBHOOK_URL]"
+    exit 1
+fi
+
+apt remove unattended-upgrades -y 
+rm /etc/apt/apt.conf.d/50unattended-upgrades
 
 # Installer les paquets nécessaires
 apt-get update
