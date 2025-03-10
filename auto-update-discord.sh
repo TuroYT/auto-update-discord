@@ -57,28 +57,31 @@ send_discord_message() {
 
 # Récupérer les informations sur les mises à jour à partir du log
 if [ -f "\$LOG_FILE" ]; then
-    UPDATED_PACKAGES=\$(grep "Packages that will be upgraded:" "\$LOG_FILE" | tail -n 1 | sed 's/Packages that will be upgraded: //')
-    if [ -n "\$UPDATED_PACKAGES" ]; then
-        UPDATED_PACKAGES_FORMATTED=\$(echo "\$UPDATED_PACKAGES" | tr ' ' '\\n' | paste -sd ", ")
-        UPDATE_SUMMARY="Mises à jour installées : \$UPDATED_PACKAGES_FORMATTED"
-    else
-        UPDATE_SUMMARY="Aucune mise à jour installée."
-    fi
+  # Récupérer les paquets mis à jour
+  UPDATED_PACKAGES_RAW=$(grep "will be upgraded" "$LOG_FILE" | sed 's/Package //g;s/ has a higher version available, checking if it is from an allowed origin and is not pinned down.//g')
 
-    # Vérifier s'il y a des erreurs
-    ERROR_MESSAGES=\$(grep "ERROR" "\$LOG_FILE" | tail -n 5)
-    if [ -n "\$ERROR_MESSAGES" ]; then
-      ERROR_SUMMARY="Erreurs détectées : \n\$ERROR_MESSAGES"
-      ERROR_COLOR=15158332 # Rouge
-    else
-      ERROR_SUMMARY="Aucune erreur détectée."
-      ERROR_COLOR=5814783 # Vert
-    fi
+  if [ -n "$UPDATED_PACKAGES_RAW" ]; then
+    # Formatter la liste des paquets
+    UPDATED_PACKAGES_FORMATTED=$(echo "$UPDATED_PACKAGES_RAW" | tr '\n' ',' | sed 's/,$//')
+    UPDATE_SUMMARY="Mises à jour installées : $UPDATED_PACKAGES_FORMATTED"
+  else
+    UPDATE_SUMMARY="Aucune mise à jour installée."
+  fi
+
+  # Vérifier s'il y a des erreurs
+  ERROR_MESSAGES=\$(grep "ERROR" "\$LOG_FILE" | tail -n 5)
+  if [ -n "\$ERROR_MESSAGES" ]; then
+    ERROR_SUMMARY="Erreurs détectées : \n\$ERROR_MESSAGES"
+    ERROR_COLOR=15158332 # Rouge
+  else
+    ERROR_SUMMARY="Aucune erreur détectée."
+    ERROR_COLOR=5814783 # Vert
+  fi
 
 else
-    UPDATE_SUMMARY="Journal des mises à jour non trouvé."
-    ERROR_SUMMARY="Journal des mises à jour non trouvé."
-    ERROR_COLOR=16776960  # Jaune
+  UPDATE_SUMMARY="Journal des mises à jour non trouvé."
+  ERROR_SUMMARY="Journal des mises à jour non trouvé."
+  ERROR_COLOR=16776960  # Jaune
 fi
 
 # Création du message Discord principal (mises à jour)
