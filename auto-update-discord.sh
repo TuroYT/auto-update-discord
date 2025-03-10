@@ -21,22 +21,23 @@ if [ -z "$WEBHOOK_URL" ]; then
     exit 1
 fi
 
-apt remove unattended-upgrades -y 
-rm /etc/apt/apt.conf.d/50unattended-upgrades
+# Supprimer les configurations existantes (optionnel, mais recommandé pour un redémarrage propre)
+apt remove unattended-upgrades -y
+rm -f /etc/apt/apt.conf.d/50unattended-upgrades
+rm -f /etc/apt/apt.conf.d/51unattended-upgrades-discord
 
 # Installer les paquets nécessaires
 apt-get update
-apt-get install -y unattended-upgrades curl
+apt-get install -y unattended-upgrades apt-listchanges curl
 
 # Configurer Unattended-Upgrades
 cat <<EOL > /etc/apt/apt.conf.d/50unattended-upgrades
 Unattended-Upgrade::Allowed-Origins {
       "\${distro_id}:\${distro_codename}";
       "\${distro_id}:\${distro_codename}-security";
-      "\${distro_id}:\${distro_codename}-updates";
-      "\${distro_id}:\${distro_codename}-proposed";
-      "\${distro_id}:\${distro_codename}-backports";
 };
+Unattended-Upgrade::Mail "root";  # Envoyer un mail à root
+Unattended-Upgrade::MailOnlyOnError "false"; # Envoyer un mail même si pas d'erreur
 EOL
 
 # Créer le script de notification Discord
@@ -46,10 +47,42 @@ cat <<EOL > /usr/local/bin/discord-notify.sh
 WEBHOOK_URL="$WEBHOOK_URL"
 HOST=\$(hostname)
 TIMESTAMP=\$(date '+%Y-%m-%d %H:%M:%S')
-UPDATES=\$(cat /var/log/unattended-upgrades/unattended-upgrades.log | grep -A 2 "Packages that will be upgraded" | tail -n 2)
+LOG_FILE="/var/log/unattended-upgrades/unattended-upgrades.log"
 
-# Création du message Discord avec un embed
-JSON_DATA='{
+# Fonction pour envoyer un message Discord
+send_discord_message() {
+  JSON_DATA="$1"
+  curl -H "Content-Type: application/json" -X POST -d "$JSON_DATA" "$WEBHOOK_URL"
+}
+
+# Récupérer les informations sur les mises à jour à partir du log
+if [ -f "\$LOG_FILE" ]; then
+    UPDATED_PACKAGES=\$(grep "Packages that will be upgraded:" "\$LOG_FILE" | tail -n 1 | sed 's/Packages that will be upgraded: //')
+    if [ -n "\$UPDATED_PACKAGES" ]; then
+        UPDATED_PACKAGES_FORMATTED=\$(echo "\$UPDATED_PACKAGES" | tr ' ' '\\n' | paste -sd ", ")
+        UPDATE_SUMMARY="Mises à jour installées : \$UPDATED_PACKAGES_FORMATTED"
+    else
+        UPDATE_SUMMARY="Aucune mise à jour installée."
+    fi
+
+    # Vérifier s'il y a des erreurs
+    ERROR_MESSAGES=\$(grep "ERROR" "\$LOG_FILE" | tail -n 5)
+    if [ -n "\$ERROR_MESSAGES" ]; then
+      ERROR_SUMMARY="Erreurs détectées : \n\$ERROR_MESSAGES"
+      ERROR_COLOR=15158332 # Rouge
+    else
+      ERROR_SUMMARY="Aucune erreur détectée."
+      ERROR_COLOR=5814783 # Vert
+    fi
+
+else
+    UPDATE_SUMMARY="Journal des mises à jour non trouvé."
+    ERROR_SUMMARY="Journal des mises à jour non trouvé."
+    ERROR_COLOR=16776960  # Jaune
+fi
+
+# Création du message Discord principal (mises à jour)
+MAIN_JSON_DATA='{
     "embeds": [{
         "title": "🔄 Mise à jour système effectuée",
         "color": 5814783,
@@ -66,7 +99,7 @@ JSON_DATA='{
             },
             {
                 "name": "Mises à jour installées",
-                "value": "'\${UPDATES:-Aucune mise à jour détaillée disponible}'"
+                "value": "'\$UPDATE_SUMMARY'"
             }
         ],
         "footer": {
@@ -75,7 +108,38 @@ JSON_DATA='{
     }]
 }'
 
-curl -H "Content-Type: application/json" -X POST -d "\$JSON_DATA" \$WEBHOOK_URL
+# Création du message Discord (erreurs)
+ERROR_JSON_DATA='{
+    "embeds": [{
+        "title": "⚠️ Rapport d\'erreurs - Mise à jour système",
+        "color": '"\$ERROR_COLOR"',
+        "fields": [
+            {
+                "name": "Serveur",
+                "value": "'\$HOST'",
+                "inline": true
+            },
+            {
+                "name": "Date",
+                "value": "'\$TIMESTAMP'",
+                "inline": true
+            },
+            {
+                "name": "Erreurs",
+                "value": "'\$ERROR_SUMMARY'"
+            }
+        ],
+        "footer": {
+            "text": "Système de mise à jour automatique"
+        }
+    }]
+}'
+
+
+# Envoi des messages Discord
+send_discord_message "\$MAIN_JSON_DATA"
+send_discord_message "\$ERROR_JSON_DATA"
+
 EOL
 
 # Rendre le script exécutable
@@ -83,8 +147,11 @@ chmod +x /usr/local/bin/discord-notify.sh
 
 # Configurer le hook post-mise à jour
 cat <<EOL > /etc/apt/apt.conf.d/51unattended-upgrades-discord
-Dpkg::Post-Invoke { "/usr/local/bin/discord-notify.sh"; };
+Dpkg::Post-Invoke { " /usr/local/bin/discord-notify.sh || true"; };
 EOL
+
+# Activer unattended-upgrades
+echo 'Unattended-Upgrade::Automatic-Updates "1";' > /etc/apt/apt.conf.d/20auto-upgrades
 
 echo "Configuration terminée. Unattended-Upgrades est maintenant configuré pour envoyer des notifications à Discord après chaque mise à jour."
 
@@ -110,7 +177,11 @@ cat <<EOL > /tmp/discord-test.json
 }
 EOL
 
-curl -H "Content-Type: application/json" -X POST -d @/tmp/discord-test.json $WEBHOOK_URL
+curl -H "Content-Type: application/json" -X POST -d @/tmp/discord-test.json "$WEBHOOK_URL"
 rm /tmp/discord-test.json
 
 echo "Si vous avez reçu un message sur Discord, la configuration est réussie !"
+
+# Exécuter une première mise à jour (simulée) pour tester la configuration
+echo "Simulation d'une mise à jour pour tester la notification..."
+unattended-upgrade -d -v
