@@ -36,8 +36,8 @@ Unattended-Upgrade::Allowed-Origins {
       "\${distro_id}:\${distro_codename}";
       "\${distro_id}:\${distro_codename}-security";
 };
-Unattended-Upgrade::Mail "root";  # Envoyer un mail à root
-Unattended-Upgrade::MailOnlyOnError "false"; # Envoyer un mail même si pas d'erreur
+Unattended-Upgrade::Mail "";  # Ne pas envoyer de mail
+Unattended-Upgrade::MailOnlyOnError "true"; # Option sans effet car pas d'envoi de mail
 EOL
 
 # Créer le script de notification Discord
